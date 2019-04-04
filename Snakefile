@@ -1,6 +1,8 @@
 import os.path
 
 timepoints = ['bl']
+dwi_contrasts = ['FA', 'MD', 'AD', 'RD']
+cord_tracts = ['DC', 'LF', 'VF', 'WM']
 
 rule all:
     input:
@@ -13,7 +15,11 @@ rule all:
         expand('{tp}/brain/mpm_A_seg_stats.csv', tp=timepoints),
         expand('{tp}/brain/mpm_R1_UNICORT_seg_stats.csv', tp=timepoints),
         expand('{tp}/brain/mpm_R2s_OLS_seg_stats.csv', tp=timepoints),
-        expand('{tp}/brain/tractseg_output/bundle_segmentations/CST_left.nii.gz', tp=timepoints)
+        expand('{tp}/brain/tractseg_output/bundle_segmentations/CST_left.nii.gz', tp=timepoints),
+        expand('{tp}/cord/sct_processing/t2/shape_analysis.csv', tp=timepoints),
+        expand('{tp}/cord/sct_processing/t2s/gm_csa.csv', tp=timepoints),
+        expand('{tp}/cord/sct_processing/t2s/wm_csa.csv', tp=timepoints),
+        expand('{tp}/cord/sct_processing/dwi/{dc}_in_{ct}.csv', tp=timepoints, dc=dwi_contrasts, ct=cord_tracts)
 
 rule multiply_dwi_by_1000:
     input:
@@ -212,3 +218,267 @@ rule standardize_orientation:
         mpm_mt_std='{tp}/brain/mpm_{contrast}_std.nii.gz',
     shell:
         'fslreorient2std {input.mpm_mt} {output.mpm_mt_std}'
+
+rule prepare_data:
+    input:
+        t2_tra='{tp}/cord/t2_tra.nii.gz',
+        pd_medic='{tp}/cord/pd_medic.nii.gz',
+        dwi='{tp}/cord/dwi.nii.gz',
+        bvals='{tp}/cord/dwi.bval',
+        bvecs='{tp}/cord/dwi.bvec'
+    output:
+        t2='{tp}/cord/sct_processing/t2/t2.nii.gz',
+        t2s='{tp}/cord/sct_processing/t2s/t2s_all.nii.gz',
+        dmri='{tp}/cord/sct_processing/dwi/dmri.nii.gz',
+        bval='{tp}/cord/sct_processing/dwi/bval.txt',
+        bvec='{tp}/cord/sct_processing/dwi/bvec.txt'
+    params:
+        outdir='{tp}/cord/sct_processing'
+    shell:
+        'mkdir -p {params.outdir}/t2 &&'
+        'mkdir -p {params.outdir}/t2s &&'
+        'mkdir -p {params.outdir}/dwi &&'
+        'cp {input.t2_tra} {output.t2} &&'
+        'cp {input.pd_medic} {output.t2s} &&'
+        'cp {input.dwi} {output.dmri} &&'
+        'cp {input.bvals} {output.bval} &&'
+        'cp {input.bvecs} {output.bvec}'
+
+rule process_data:
+    input:
+        t2='{tp}/cord/sct_processing/t2/t2.nii.gz',
+        t2s='{tp}/cord/sct_processing/t2s/t2s_all.nii.gz',
+        dmri='{tp}/cord/sct_processing/dwi/dmri.nii.gz',
+        bval='{tp}/cord/sct_processing/dwi/bvec.txt',
+        bvec='{tp}/cord/sct_processing/dwi/bval.txt'
+    output:
+        '{tp}/cord/sct_processing/t2/t2_seg.nii.gz',
+        '{tp}/cord/sct_processing/t2/qc/qc_results.json',
+        '{tp}/cord/sct_processing/t2/qc/index.html',
+        '{tp}/cord/sct_processing/t2/qc/_assets/js/bootstrap-table.min.js',
+        '{tp}/cord/sct_processing/t2/qc/_assets/js/main.js',
+        '{tp}/cord/sct_processing/t2/qc/_assets/js/jquery-3.1.0.min.js',
+        '{tp}/cord/sct_processing/t2/qc/_assets/js/bootstrap.min.js',
+        '{tp}/cord/sct_processing/t2/qc/_assets/js/select2.min.js',
+        '{tp}/cord/sct_processing/t2/qc/_assets/js/animation.js',
+        '{tp}/cord/sct_processing/t2/qc/_assets/fonts/glyphicons-halflings-regular.ttf',
+        '{tp}/cord/sct_processing/t2/qc/_assets/fonts/glyphicons-halflings-regular.woff2',
+        '{tp}/cord/sct_processing/t2/qc/_assets/fonts/glyphicons-halflings-regular.woff',
+        '{tp}/cord/sct_processing/t2/qc/_assets/fonts/glyphicons-halflings-regular.svg',
+        '{tp}/cord/sct_processing/t2/qc/_assets/fonts/glyphicons-halflings-regular.eot',
+        '{tp}/cord/sct_processing/t2/qc/_assets/imgs/sct_logo.png',
+        '{tp}/cord/sct_processing/t2/qc/_assets/imgs/sagittal.png',
+        '{tp}/cord/sct_processing/t2/qc/_assets/imgs/axial.png',
+        '{tp}/cord/sct_processing/t2/qc/_assets/css/select2.min.css',
+        '{tp}/cord/sct_processing/t2/qc/_assets/css/bootstrap.min.css',
+        '{tp}/cord/sct_processing/t2/qc/_assets/css/bootstrap-table.min.css',
+        '{tp}/cord/sct_processing/t2/qc/_assets/css/bootstrap.min.css.map',
+        '{tp}/cord/sct_processing/t2/qc/_assets/css/style.css',
+        '{tp}/cord/sct_processing/t2/qc/_assets/css/bootstrap-theme.min.css',
+        '{tp}/cord/sct_processing/t2s/t2s_all_T0002.nii.gz',
+        '{tp}/cord/sct_processing/t2s/t2s_all_T0000.nii.gz',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/js/select2.min.js',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/js/bootstrap.min.js',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/js/bootstrap-table.min.js',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/js/animation.js',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/js/main.js',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/js/jquery-3.1.0.min.js',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/fonts/glyphicons-halflings-regular.woff',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/fonts/glyphicons-halflings-regular.svg',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/fonts/glyphicons-halflings-regular.eot',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/fonts/glyphicons-halflings-regular.ttf',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/fonts/glyphicons-halflings-regular.woff2',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/imgs/sct_logo.png',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/imgs/sagittal.png',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/imgs/axial.png',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/css/bootstrap-theme.min.css',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/css/bootstrap-table.min.css',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/css/select2.min.css',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/css/bootstrap.min.css.map',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/css/style.css',
+        '{tp}/cord/sct_processing/t2s/qc/_assets/css/bootstrap.min.css',
+        '{tp}/cord/sct_processing/t2s/qc/qc_results.json',
+        '{tp}/cord/sct_processing/t2s/qc/index.html',
+        '{tp}/cord/sct_processing/t2s/mask_t2s.nii.gz',
+        '{tp}/cord/sct_processing/t2s/t2s_all_mean.nii.gz',
+        '{tp}/cord/sct_processing/t2s/t2s_all_moco_mean_gmseg.nii.gz',
+        '{tp}/cord/sct_processing/t2s/t2s_all_moco_mean_seg.nii.gz',
+        '{tp}/cord/sct_processing/t2s/t2s_all_T0000_centerline.nii.gz',
+        '{tp}/cord/sct_processing/t2s/t2s_all_moco_mean.nii.gz',
+        '{tp}/cord/sct_processing/t2s/t2s_all_T0000_centerline.csv',
+        '{tp}/cord/sct_processing/t2s/t2s_all_T0003.nii.gz',
+        '{tp}/cord/sct_processing/t2s/t2s_all_moco.nii.gz',
+        '{tp}/cord/sct_processing/t2s/t2s_all_T0001.nii.gz',
+        '{tp}/cord/sct_processing/dwi/qc/qc_results.json',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/imgs/sagittal.png',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/imgs/sct_logo.png',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/imgs/axial.png',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/js/select2.min.js',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/js/main.js',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/js/jquery-3.1.0.min.js',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/js/animation.js',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/js/bootstrap-table.min.js',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/js/bootstrap.min.js',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/css/style.css',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/css/bootstrap.min.css.map',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/css/bootstrap-table.min.css',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/css/bootstrap-theme.min.css',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/css/bootstrap.min.css',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/css/select2.min.css',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/fonts/glyphicons-halflings-regular.eot',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/fonts/glyphicons-halflings-regular.svg',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/fonts/glyphicons-halflings-regular.woff',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/fonts/glyphicons-halflings-regular.woff2',
+        '{tp}/cord/sct_processing/dwi/qc/_assets/fonts/glyphicons-halflings-regular.ttf',
+        '{tp}/cord/sct_processing/dwi/qc/index.html',
+        '{tp}/cord/sct_processing/dwi/dmri_dwi_mean_centerline.csv',
+        '{tp}/cord/sct_processing/dwi/labels.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_crop_moco_b0_mean.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_dwi_mean.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_crop.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_b0.nii.gz',
+        '{tp}/cord/sct_processing/dwi/warp_anat2template.nii.gz',
+        '{tp}/cord/sct_processing/dwi/anat2template.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_dwi.nii.gz',
+        '{tp}/cord/sct_processing/dwi/mask_dmri.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_crop_moco_dwi_mean_seg.nii.gz',
+        '{tp}/cord/sct_processing/dwi/template2anat.nii.gz',
+        '{tp}/cord/sct_processing/dwi/centerline.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_18.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_03.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_15.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_22.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_34.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_01.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_17.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_20.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_36.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_11.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_07.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_30.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_26.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_13.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_08.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_05.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_32.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/info_label.txt',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_29.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_24.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_27.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_31.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_06.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_10.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_25.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_33.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_28.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_04.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_12.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_09.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_35.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_23.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_14.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_19.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_02.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_21.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_16.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/atlas/PAM50_atlas_00.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_t2s.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_centerline.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_csf.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_cord.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_label_disc.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_t1.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_t2.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_label_body.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_wm.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_levels.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_gm.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_levels_continuous.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_label_discPosterior.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/PAM50_spine.nii.gz',
+        '{tp}/cord/sct_processing/dwi/label/template/info_label.txt',
+        '{tp}/cord/sct_processing/dwi/warp_template2dmri.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_b0_mean.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_crop_moco_dwi_mean.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_crop_moco_dwi_mean_centerline.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_dwi_mean_centerline.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dmri_crop_moco.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dti_FA.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dti_MD.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dti_AD.nii.gz',
+        '{tp}/cord/sct_processing/dwi/dti_RD.nii.gz',
+    params:
+        workdir='{tp}/cord/sct_processing'
+    shell:
+        'pushd {params.workdir} && '
+        'mkdir -p t2/qc && '
+        'mkdir -p dwi/qc && '
+        '/usr/local/bin/process_data.sh qc && '
+        'popd'
+
+rule shape_analysis:
+    input:
+        t2_seg='{tp}/cord/sct_processing/t2/t2_seg.nii.gz'
+    output:
+        shape_analysis='{tp}/cord/sct_processing/t2/shape_analysis.csv'
+    shell:
+        'sct_process_segmentation -i {input.t2_seg} -p shape -o {output.shape_analysis}'
+
+rule cord_wm_seg:
+    input:
+        all_seg='{tp}/cord/sct_processing/t2s/t2s_all_moco_mean_seg.nii.gz',
+        gm_seg='{tp}/cord/sct_processing/t2s/t2s_all_moco_mean_gmseg.nii.gz'
+    output:
+        wm_seg='{tp}/cord/sct_processing/t2s/wm_seg.nii.gz',
+        gm_seg='{tp}/cord/sct_processing/t2s/gm_seg.nii.gz'
+    shell:
+        'sct_maths -i {input.all_seg} -sub {input.gm_seg} -o {output.wm_seg} && '
+        'cp {input.gm_seg} {output.gm_seg}'
+
+rule cord_csa:
+    input:
+        seg='{tp}/cord/sct_processing/t2s/{tissue}_seg.nii.gz'
+    output:
+        csa='{tp}/cord/sct_processing/t2s/{tissue}_csa.csv'
+    shell:
+        'sct_process_segmentation -i {input.seg} -p csa -z 2:7 -o {output.csa} -no-angle 1'
+
+rule cord_diffusion_wm:
+    input:
+        dti='{tp}/cord/sct_processing/dwi/dti_{contrast}.nii.gz'
+    output:
+        res='{tp}/cord/sct_processing/dwi/{contrast}_in_WM.csv'
+    params:
+        atlas='{tp}/cord/sct_processing/dwi/label/atlas'
+    shell:
+        'sct_extract_metric -i {input.dti} -f {params.atlas} -l 51 -method map -o {output.res}'
+
+rule cord_diffusion_dc:
+    input:
+        dti='{tp}/cord/sct_processing/dwi/dti_{contrast}.nii.gz'
+    output:
+        res='{tp}/cord/sct_processing/dwi/{contrast}_in_DC.csv'
+    params:
+        atlas='{tp}/cord/sct_processing/dwi/label/atlas'
+    shell:
+        'sct_extract_metric -i {input.dti} -f {params.atlas} -l 53 -method map -o {output.res}'
+
+rule cord_diffusion_lf:
+    input:
+        dti='{tp}/cord/sct_processing/dwi/dti_{contrast}.nii.gz'
+    output:
+        res='{tp}/cord/sct_processing/dwi/{contrast}_in_LF.csv'
+    params:
+        atlas='{tp}/cord/sct_processing/dwi/label/atlas'
+    shell:
+        'sct_extract_metric -i {input.dti} -f {params.atlas} -l 54 -method map -o {output.res}'
+
+rule cord_diffusion_vf:
+    input:
+        dti='{tp}/cord/sct_processing/dwi/dti_{contrast}.nii.gz'
+    output:
+        res='{tp}/cord/sct_processing/dwi/{contrast}_in_VF.csv'
+    params:
+        atlas='{tp}/cord/sct_processing/dwi/label/atlas'
+    shell:
+        'sct_extract_metric -i {input.dti} -f {params.atlas} -l 55 -method map -o {output.res}'
