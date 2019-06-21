@@ -420,7 +420,7 @@ rule shape_analysis:
     output:
         shape_analysis='{tp}/cord/sct_processing/t2/shape_analysis.csv'
     shell:
-        'sct_process_segmentation -i {input.t2_seg} -p shape -o {output.shape_analysis}'
+        'sct_process_segmentation -i {input.t2_seg} -o {output.shape_analysis}'
 
 rule cord_wm_seg:
     input:
