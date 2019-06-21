@@ -4,6 +4,7 @@ timepoints = ['bl']
 dwi_contrasts = ['FA', 'MD', 'AD', 'RD']
 cord_tracts = ['DC', 'LF', 'VF', 'WM']
 
+{% block outputs %}
 rule all:
     input:
         expand('{tp}/brain/mpm_MT_std_NeuroMorph_Segmentation_clean.nii.gz', tp=timepoints),
@@ -20,6 +21,7 @@ rule all:
         expand('{tp}/cord/sct_processing/t2s/gm_csa.csv', tp=timepoints),
         expand('{tp}/cord/sct_processing/t2s/wm_csa.csv', tp=timepoints),
         expand('{tp}/cord/sct_processing/dwi/{dc}_in_{ct}.csv', tp=timepoints, dc=dwi_contrasts, ct=cord_tracts)
+{% endblock %}
 
 rule multiply_dwi_by_1000:
     input:
