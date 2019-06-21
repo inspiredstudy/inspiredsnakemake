@@ -1,0 +1,19 @@
+
+{% extends "default/Snakefile.j2" %}
+
+{% block outputs %}
+rule all:
+    input:
+        expand('{tp}/brain/mpm_MT_std_NeuroMorph_Segmentation_clean.nii.gz', tp=timepoints),
+        expand('{tp}/brain/dwi_fa_seg_stats.csv', tp=timepoints),
+        expand('{tp}/brain/dwi_md1000_seg_stats.csv', tp=timepoints),
+        expand('{tp}/brain/dwi_ad1000_seg_stats.csv', tp=timepoints),
+        expand('{tp}/brain/dwi_rd1000_seg_stats.csv', tp=timepoints),
+        expand('{tp}/brain/mpm_MT_seg_stats.csv', tp=timepoints),
+        expand('{tp}/brain/mpm_A_seg_stats.csv', tp=timepoints),
+        expand('{tp}/brain/mpm_R1_UNICORT_seg_stats.csv', tp=timepoints),
+        expand('{tp}/brain/mpm_R2s_OLS_seg_stats.csv', tp=timepoints),
+        expand('{tp}/brain/tractseg_output/bundle_segmentations/CST_left.nii.gz', tp=timepoints),
+        expand('{tp}/cord/sct_processing/t2/shape_analysis.csv', tp=timepoints),
+        expand('{tp}/cord/sct_processing/dwi/{dc}_in_{ct}.csv', tp=timepoints, dc=dwi_contrasts, ct=cord_tracts)
+{% endblock %}
