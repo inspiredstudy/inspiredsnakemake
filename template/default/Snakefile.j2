@@ -22,7 +22,8 @@ rule all:
         expand('{tp}/cord/sct_processing/t2/shape_analysis.csv', tp=timepoints),
         expand('{tp}/cord/sct_processing/t2s/gm_csa.csv', tp=timepoints),
         expand('{tp}/cord/sct_processing/t2s/wm_csa.csv', tp=timepoints),
-        expand('{tp}/cord/sct_processing/dwi/{dc}_in_{ct}.csv', tp=timepoints, dc=dwi_contrasts, ct=cord_tracts)
+        expand('{tp}/cord/sct_processing/dwi/{dc}_in_{ct}.csv', tp=timepoints, dc=dwi_contrasts, ct=cord_tracts),
+        expand('{tp}/brain/gironax/gironax.txt', tp=timepoints),
 {% endblock %}
 
 rule multiply_dwi_by_1000:
@@ -482,3 +483,15 @@ rule cord_diffusion_vf:
         atlas='{tp}/cord/sct_processing/dwi/label/atlas'
     shell:
         'sct_extract_metric -i {input.dti} -f {params.atlas} -l 55 -method map -o {output.res}'
+
+rule gironax:
+    input:
+        t13d='{tp}/brain/mpm_MT_std.nii.gz',
+        seg='{tp}/brain/mpm_MT_std_NeuroMorph_Segmentation.nii.gz',
+        mask='{tp}/brain/mpm_MT_std_NeuroMorph_Brain.nii.gz'
+    output:
+        gironax_report='{tp}/brain/gironax/gironax.txt'
+    params:
+        output_dir='{tp}/brain/gironax'
+    shell:
+        'gironax {input.t13d} -atlas /usr/local/fsl/data/standard/MNI152_T1_1mm.nii.gz -atlas_brain /usr/local/fsl/data/standard/MNI152_T1_1mm_brain.nii.gz -db /gif/db.xml -seg {input.seg} -brain {input.mask} -o {params.output_dir}'
