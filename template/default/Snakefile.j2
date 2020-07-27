@@ -442,7 +442,7 @@ rule cord_csa:
     output:
         csa='{tp}/cord/sct_processing/t2s/{tissue}_csa.csv'
     shell:
-        'sct_process_segmentation -i {input.seg} -p csa -z 2:7 -o {output.csa} -no-angle 1'
+        'sct_process_segmentation -i {input.seg} -z 2:7 -o {output.csa} -angle-corr 0'
 
 rule cord_diffusion_wm:
     input:
