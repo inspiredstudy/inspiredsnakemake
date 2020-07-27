@@ -198,11 +198,12 @@ rule clean_gif:
         seg='{tp}/brain/mpm_MT_std_NeuroMorph_Segmentation.nii.gz',
     output:
         seg_clean='{tp}/brain/mpm_MT_std_NeuroMorph_Segmentation_clean.nii.gz',
+        tmp_mask=temp('tmp.nii.gz'),
+        tmp4d_mask=temp('tmp4d.nii.gz'),
     shell:
         'seg_maths {input.seg} -tpmax -thr 1.5 -ero 1 -lconcomp -dil 1 tmp.nii.gz && '
         'seg_maths tmp.nii.gz -merge 5 4 tmp.nii.gz tmp.nii.gz tmp.nii.gz tmp.nii.gz tmp.nii.gz tmp4d.nii.gz && '
-        'seg_maths {input.seg} -mul tmp4d.nii.gz {output.seg_clean} && '
-        'rm tmp.nii.gz'
+        'seg_maths {input.seg} -mul tmp4d.nii.gz {output.seg_clean}'
 
 rule gif:
     input:
