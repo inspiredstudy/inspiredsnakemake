@@ -23,3 +23,5 @@ In production this pipeline is executed in a Docker container described in the
 [inspireddocker](https://github.com/inspiredstudy/inspireddocker) repository.
 The Dockerfile in that repository should be referred to for a list of
 dependencies.
+
+The new command is: singularity exec -B /trials/admin/sfw/template_databases/gif/GIF:/gif -B $PWD:/data /trials/admin/sfw/singularity/inspired.sif snakemake
