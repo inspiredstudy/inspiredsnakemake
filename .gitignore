@@ -4,3 +4,4 @@ hosts
 setup
 tasks
 Makefile
+snakefiles/
