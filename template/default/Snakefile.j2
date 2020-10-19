@@ -188,22 +188,27 @@ rule combine_b0:
     output:
         b0='{tp}/brain/dwi_b0_complete.nii.gz'
     shadow: 'shallow'
-    run:
-        for vol in [0, 1, 15, 28, 42, 55, 66]:
-            shell('seg_maths {input.dwi} -tp {vol} b0_{vol}.nii.gz')
-        shell('seg_maths b0_0.nii.gz -merge 7 4 b0_1.nii.gz b0_15.nii.gz b0_28.nii.gz b0_42.nii.gz b0_55.nii.gz b0_66.nii.gz {input.dwi_rev_blip} {output.b0}')
+    shell:
+        'seg_maths {input.dwi} -tp 0 b0_0.nii.gz && '
+        'seg_maths {input.dwi} -tp 1 b0_1.nii.gz && '
+        'seg_maths {input.dwi} -tp 15 b0_15.nii.gz && '
+        'seg_maths {input.dwi} -tp 28 b0_28.nii.gz && '
+        'seg_maths {input.dwi} -tp 42 b0_42.nii.gz && '
+        'seg_maths {input.dwi} -tp 55 b0_55.nii.gz && '
+        'seg_maths {input.dwi} -tp 66 b0_66.nii.gz && '
+        'seg_maths b0_0.nii.gz -merge 7 4 b0_1.nii.gz b0_15.nii.gz b0_28.nii.gz b0_42.nii.gz b0_55.nii.gz b0_66.nii.gz {input.dwi_rev_blip} {output.b0}'
 
 rule clean_gif:
     input:
         seg='{tp}/brain/mpm_MT_std_NeuroMorph_Segmentation.nii.gz',
     output:
         seg_clean='{tp}/brain/mpm_MT_std_NeuroMorph_Segmentation_clean.nii.gz',
-        tmp_mask=temp('tmp.nii.gz'),
-        tmp4d_mask=temp('tmp4d.nii.gz'),
+        tmp_mask=temp('{tp}/brain/tmp.nii.gz'),
+        tmp4d_mask=temp('{tp}/brain/tmp4d.nii.gz'),
     shell:
-        'seg_maths {input.seg} -tpmax -thr 1.5 -ero 1 -lconcomp -dil 1 tmp.nii.gz && '
-        'seg_maths tmp.nii.gz -merge 5 4 tmp.nii.gz tmp.nii.gz tmp.nii.gz tmp.nii.gz tmp.nii.gz tmp4d.nii.gz && '
-        'seg_maths {input.seg} -mul tmp4d.nii.gz {output.seg_clean}'
+        'seg_maths {input.seg} -tpmax -thr 1.5 -ero 1 -lconcomp -dil 1 {output.tmp_mask} && '
+        'seg_maths {output.tmp_mask} -merge 5 4 {output.tmp_mask} {output.tmp_mask} {output.tmp_mask} {output.tmp_mask} {output.tmp_mask} {output.tmp4d_mask} && '
+        'seg_maths {input.seg} -mul {output.tmp4d_mask} {output.seg_clean}'
 
 rule gif:
     input:
@@ -212,10 +217,11 @@ rule gif:
         seg='{tp}/brain/mpm_MT_std_NeuroMorph_Segmentation.nii.gz',
         parc='{tp}/brain/mpm_MT_std_NeuroMorph_Parcellation.nii.gz',
         brain='{tp}/brain/mpm_MT_std_NeuroMorph_Brain.nii.gz'
+    params:
+        outdir='{tp}/brain'
     threads: 4
-    run:
-        outdir = os.path.abspath(os.path.dirname(output.seg))
-        shell('seg_GIF -in {input.mpm_mt} -db /gif/db.xml -v 1 -out ' + outdir)
+    shell:
+        'seg_GIF -in {input.mpm_mt} -db /gif/db.xml -v 1 -out {params.outdir}'
 
 rule standardize_orientation:
     input:
@@ -491,8 +497,19 @@ rule gironax:
         seg='{tp}/brain/mpm_MT_std_NeuroMorph_Segmentation.nii.gz',
         mask='{tp}/brain/mpm_MT_std_NeuroMorph_Brain.nii.gz'
     output:
-        gironax_report='{tp}/brain/gironax/gironax.txt'
+        '{tp}/brain/gironax/brain_mask.nii.gz',
+        '{tp}/brain/gironax/BV.nii.gz',
+        '{tp}/brain/gironax/CGM.nii.gz',
+        '{tp}/brain/gironax/DGM.nii.gz',
+        '{tp}/brain/gironax/gironax.txt',
+        '{tp}/brain/gironax/GM.nii.gz',
+        '{tp}/brain/gironax/input_brain.nii.gz',
+        '{tp}/brain/gironax/input_brain_ro.nii.gz',
+        '{tp}/brain/gironax/input_mni152_reslice.nii.gz',
+        '{tp}/brain/gironax/transform.mat',
+        '{tp}/brain/gironax/WM.nii.gz',
     params:
         output_dir='{tp}/brain/gironax'
+    singularity: '/trials/admin/sfw/singularity/girona/girona.sif'
     shell:
         'gironax {input.t13d} -atlas /usr/local/fsl/data/standard/MNI152_T1_1mm.nii.gz -atlas_brain /usr/local/fsl/data/standard/MNI152_T1_1mm_brain.nii.gz -db /gif/db.xml -seg {input.seg} -brain {input.mask} -o {params.output_dir}'
